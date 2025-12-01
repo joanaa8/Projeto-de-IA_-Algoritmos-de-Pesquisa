@@ -1,0 +1,24 @@
+Para o python: 
+foi criado um ambiente isolado com todos os comandos que vão ser necessários,
+de forma a não interferir com o resto do computador.
+- certificar que o python está instalado
+- (no terminal) python -m venv venv: cria uma pasta à parte com bibliotecas, scripts, gitignore etc..
+- (no terminal) .\venv\Scripts\Activate abrir a parta em questão e instalar as bibliotecas necessárias
+- (no terminal) pip install pandas openpyxl para ler o ficheiro.
+- para fazer dubug é sempre dentro do venv com python navios.py
+
+
+
+
+como boa prática:
+- também devemos de colocar as bibliotecas na parte inicial do projeto.
+- comentar o projeto, para facilitar o acompanhamento
+
+
+
+Informações:
+Dicionário - é uma estrutura de dados, armazena informações complexas
+                o armazenamento funciona da forma key: value
+                onde a key normalmente é uma string
+                value é o valor associado
+    no projeto é o responsável por identificar de forma clara o objeto
