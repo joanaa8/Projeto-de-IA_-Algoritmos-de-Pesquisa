@@ -1,4 +1,4 @@
-
+---Apontamentos Enunciado----
 Zonas de atracagem:
     ZonaA: para navios de grande porte (porta-contentores, navios de cruzeiro, etc.).
     ZonaB: para navios de médio e pequeno porte (pesqueiros,cargueiros ligeiros, etc.).
@@ -24,11 +24,7 @@ Requisitos e Considerações:
         tempo total de espera dos navios,
         ou o tempo médio de utilização das zonas.
 
-
-
-
-
-
+---pensamentos iniciais----
 Estado n, vai conter diversas variáveis como:
     Disponibilidade da zona A; aqui também vai envolver o tempo mas é mais o de espera
     Disponibilidade da zona B; "
@@ -54,5 +50,29 @@ Operadores:
     tipo2: apenas atraca em A 
 
 Custos associados:
-como o objetivo é minimizar o tempo total de espera dos navios, o custo do caminho é potencialmente a soma de todos
+como o objetivo é minimizar o tempo total de espera dos navios, o custo do caminho é potencialmente a soma de todos os tempos de espera
 
+custo(n->n') é o tempo em que o navio atracado teve de espera
+    tempo de inicio de atracagem vai ser a junção do tempo desde a hora de chegada, até ao momento em que a zona ficou livre
+
+    e o custo podemos representar como se fosse a diferença entre o  tempo de inicio de atracagem  calculado anteriormente e a hora a que o navio chegou.
+    tempos de espera maiores, têm um custo maiores
+
+o custo acumulado fica assim:
+
+            g(n')= g(n) + o custo calculado anteriormente (podemos chamar de custo de espera ig?)
+
+sendo g(n') o tempo total de espera dos navios todos que já foram atracados
+
+
+-----Construção----
+Criar a classe geral que neste caso vai ser a definição do estado
+        idealização física do porto 
+        algo fixo e definitivo
+        basicamente a base do que é um estado neste trabalho
+
+
+Criar uma classe para as regras para ficar mais organizado e fácil de correção em caso de erro
+        definir como o sistema funciona
+        como é que ele se desconstrói
+        e o custo

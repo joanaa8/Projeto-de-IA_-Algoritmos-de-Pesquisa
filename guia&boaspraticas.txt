@@ -8,12 +8,24 @@ de forma a não interferir com o resto do computador.
 - para fazer dubug é sempre dentro do venv com python navios.py
 
 
-
-
 como boa prática:
 - também devemos de colocar as bibliotecas na parte inicial do projeto.
 - comentar o projeto, para facilitar o acompanhamento
 
+
+
+Para a construção deste projeto, estamos a usar Programação Orientada a Objetos.
+
+
+ A utilização das classes, permite uma melhor organização e num só local consiguimos dizer para que serve e do que vai tratar.
+ No caso da classe Regras_Porto, definimos:
+        as restrições quer de compatibilidade quer capacidade, 
+        e a simulação dos sucessores,
+    Desta forma conseguimos definir as responsabilidades do Porto em questão
+
+Usamos também o conceito de incrementação que foi lecionado na cadeira de programação imperativa.
+    Este conceito foi utilizado para atualizar a fila de espera quando um navio que estava nela vai atracar numa zona.
+    Desta forma o navio é retirado da lista de espera
 
 
 Informações:
@@ -22,3 +34,15 @@ Dicionário - é uma estrutura de dados, armazena informações complexas
                 onde a key normalmente é uma string
                 value é o valor associado
     no projeto é o responsável por identificar de forma clara o objeto
+
+Tuple - é uma coleção ordenada e indexada de itens.
+    no projeto é usado para representar o estado físico do Porto
+
+Imutabilidade - um objeto é considerado imutável quando o seu estado não puder ser alterado após a sua criação
+    No projeto este é um tema importante, pois quando trabalhamos com um estado precisamos de garantir que cada nó visitado é fixo.
+    Se fosse mutável o seu conteúdo podia ser alterado o que invalidava todo o processo realizado.
+
+Hash e Hashing - a função hash pega um objeto de entrada, dados, e cria um número inteiro único e fixo
+    apenas o que é imutável podem ser transformados num valor hash
+
+    no projeto permite verificar se o estado já foi visitado, logo serve como ferramenta de eficiência
