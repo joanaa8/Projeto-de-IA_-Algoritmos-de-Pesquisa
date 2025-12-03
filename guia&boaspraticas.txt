@@ -46,3 +46,21 @@ Hash e Hashing - a função hash pega um objeto de entrada, dados, e cria um nú
     apenas o que é imutável podem ser transformados num valor hash
 
     no projeto permite verificar se o estado já foi visitado, logo serve como ferramenta de eficiência
+
+
+Algoritmo de Busca de Custo Uniforme:
+    Resolve problemas de otimização em problemas cujo o objetivo é encontrar o caminho mais barato, ou seja o de menor custo.
+
+    Funciona através da expansão do nó na fronteira que tem o menor custo acumulado, desde o estado inicial até ao momento
+        Portanto todas as ligações são importantes.
+        Fila de prioridades
+
+    Aqui a profundidade é ignorada e é priorizado o caminho de menor custo total percorrido até ao momento
+
+Algoritmo de Busca em Largura
+     Este algoritmo ignora o custo
+
+     E a principal diferença é a forma como lida com a "Fronteira"
+        A mesma é vista apenas como uma lista, que vai usar a estratégia de FIFO
+        
+

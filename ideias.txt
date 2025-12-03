@@ -76,3 +76,66 @@ Criar uma classe para as regras para ficar mais organizado e fácil de correçã
         definir como o sistema funciona
         como é que ele se desconstrói
         e o custo
+
+
+Como precisamos de garantir otimização talvez seja uma boa opção a utilização da Busca de Custo Uniforme
+    desta forma podemos assegurar o menor tempo de espera total
+    os tempos de espera não podem ser negativos
+
+        utilização do:
+        Custo acumulado: já idealizado anteriormente
+        Custo da ação: já idealizado anteriormente
+    
+    garante também que um navio só vai atracar se não existir outro caminho com menor tempo de espera total a ser explorado.(Prioridade)
+        assim vamos resolvemos a questão das zonas e se temos de deixar a zona B livre à espera dos navios
+        O foco é sempre o menos custo possivel.
+
+Serie interessante comparar este modelo ao de Busca em Largura, uma vez que este ignora o custo e prioriza o caminho com o menor número de nós.
+    Este algoritmo funciona com a estratégia de First In First Out (FIFO).
+    Apenas minimiza o número de passos (o que é estranho pq todos os caminhos válidos terão o mesmo número de navios)
+
+
+colocar os resultados num ficheiro
+
+
+
+
+
+def custo_uniforme(regras):
+    contador = itertools.count()  # Tie-breaker
+    fila_prioritaria = []         # Heap: (custo, ordem, estado)
+    melhor_custo = {}             # Guarda o menor custo encontrado para cada estado
+    caminho = {}                  # Guarda o predecessor de cada estado
+
+    estado_inicial = regras.estado_inicial
+    heapq.heappush(fila_prioritaria, (0.0, next(contador), estado_inicial))
+
+    melhor_custo[estado_inicial] = 0.0
+    caminho[estado_inicial] = None
+
+    estados_explorados = 0
+
+    while fila_prioritaria:
+
+        custo_atual, _, estado_atual = heapq.heappop(fila_prioritaria)
+
+       
+        if custo_atual > melhor_custo.get(estado_atual, float('inf')):
+            continue
+
+        estados_explorados += 1
+        
+        if regras.e_estado_final(estado_atual):
+            print(f"Estados explorados: {estados_explorados}")
+            return custo_atual, caminho, estados_explorados, estado_atual
+
+      
+        for estado_sucessor, custo_acao in regras.simular_sucessores(estado_atual):
+            novo_custo = custo_atual + custo_acao
+            if novo_custo < melhor_custo.get(estado_sucessor, float('inf')):
+                melhor_custo[estado_sucessor] = novo_custo
+                caminho[estado_sucessor] = (estado_atual, custo_acao)
+                heapq.heappush(fila_prioritaria, (novo_custo, next(contador), estado_sucessor))
+
+    # Se esgotou e não encontrou solução
+    return None, None, estados_explorados, None

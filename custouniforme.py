@@ -1,21 +1,21 @@
 import pandas as pd
-import heapq #fila prioritária
+import heapq # fila prioritária (usado pelo UCS)
 import datetime
-import sys #erros
+import sys # erros
 import itertools
 import os
 import time
 
 ficheiro= 'dataset_navios_porto.xlsx'
-Resultados_Ficheiro= 'resultados_greedy.txt'
+Resultados_Ficheiro= 'resultados_ucs_otimizado.txt' # Nome do ficheiro atualizado
 
 try:
     df = pd.read_excel(ficheiro)
     print("O ficheiro foi carregado com sucesso.")
-    print(df.head()) #confirmação do carregamento
+    print(df.head()) # confirmação do carregamento
 
 
-    fila_inicial=df.to_dict(orient='records') #criação do dicionário onde cada linha representa um registo
+    fila_inicial=df.to_dict(orient='records') # criação do dicionário onde cada linha representa um registo
     
     for r in fila_inicial:
         try:
@@ -44,12 +44,12 @@ except Exception as e:
     sys.exit(1)
 
 
-class Estado_Porto:  # aqui surge a definição do Estado
+class Estado_Porto: # aqui surge a definição do Estado
     def __init__(self, navios_em_espera, disp_A, disp_B):
         try:
+           
             navios_ordenados = sorted(navios_em_espera, key=lambda n: n['ID_Navio'])
         except Exception:
-            # fallback caso não seja dicionário
             navios_ordenados = sorted(navios_em_espera)
 
         self.navios_em_espera = tuple(navios_ordenados)
@@ -61,21 +61,19 @@ class Estado_Porto:  # aqui surge a definição do Estado
         except Exception:
             navios_ids = tuple(str(n) for n in navios_ordenados)
 
-        # id imutável e hash pré-calculado
+  
         self._id = (navios_ids, round(self.tempo_livre_A, 3), round(self.tempo_livre_B, 3))
         self._hash = hash(self._id)
 
     def _criar_id(self):
         return self._id
 
+  
     def __eq__(self, other):
         if not isinstance(other, Estado_Porto):
             return False
-        # Se o hash for diferente, os objetos são diferentes
         if self._hash != other._hash:
-            return False
-            
-        # Comparar o _id, que inclui IDs ordenados e tempos arredondados (ideal)
+             return False
         return self._id == other._id
 
     def __hash__(self):
@@ -90,92 +88,117 @@ class Regras_Porto: #definir as regras e restrições que o porto apresenta
         self.estado_inicial = estado_inicial
 
     def e_estado_final(self, estado):
-        return len(estado.navios_em_espera) == 0  # Estado final quando não há navios na fila
+        return len(estado.navios_em_espera) == 0 
 
+ 
     def simular_sucessores(self, estado_atual):
         sucessores = []
         navios_fila = list(estado_atual.navios_em_espera)
 
-        for i, navio in enumerate(navios_fila):
-
-            zonas_possiveis = []
-            if 'A' in navio['Zona_Permitida']:
-                zonas_possiveis.append(('A', estado_atual.tempo_livre_A))
-            if 'B' in navio['Zona_Permitida']:
-                zonas_possiveis.append(('B', estado_atual.tempo_livre_B))
-
-            if navio['Tipo'] == 'Tipo 2':   # Só pode ir para a zona A
-                zonas_possiveis = [('A', estado_atual.tempo_livre_A)]
-            else:                           # Tipo 1 pode atracar em A ou B
-                zonas_possiveis = [
-                    ('A', estado_atual.tempo_livre_A),
-                    ('B', estado_atual.tempo_livre_B)
-            ]
+        if not navios_fila:
+            return sucessores
             
-            for zona, tempo_livre in zonas_possiveis:
+        navio_a_atracar = min(navios_fila, key=lambda n: n['Hora_Chegada'])
+        
 
-                hora_chegada = float(navio.get('Hora_Chegada', 0.0))
-                duracao = float(navio.get('Duracao_Atracagem', 0.0))
+        try:
+            index_do_navio = navios_fila.index(navio_a_atracar)
+        except ValueError:
+    
+            return sucessores
+        
+   
+        navio = navio_a_atracar
+        i = index_do_navio 
 
-                # Início real da atracagem
-                tempo_inicio = max(hora_chegada, tempo_livre)
+        zonas_possiveis = []
 
-                # Custo = tempo de espera
-                custo_acao = tempo_inicio - hora_chegada
+        # Tipo 2 só pode ir para A
+        if navio['Tipo'] == 'Tipo 2':
+            zonas_possiveis = [('A', estado_atual.tempo_livre_A)]
+        # Tipo 1 pode ir para A ou B
+        elif navio['Tipo'] == 'Tipo 1':
+            zonas_possiveis = [
+                ('A', estado_atual.tempo_livre_A),
+                ('B', estado_atual.tempo_livre_B)
+            ]
+      
+        
+        for zona, tempo_livre in zonas_possiveis:
 
-                # Zona ficará livre após a atracagem
-                novo_tempo_livre = tempo_inicio + duracao
+            hora_chegada = float(navio.get('Hora_Chegada', 0.0))
+            duracao = float(navio.get('Duracao_Atracagem', 0.0))
 
-                
-                nova_fila = navios_fila[:i] + navios_fila[i+1:]
+         
+            tempo_inicio = max(hora_chegada, tempo_livre)
 
-                
-                nova_disp_A = novo_tempo_livre if zona == 'A' else estado_atual.tempo_livre_A
-                nova_disp_B = novo_tempo_livre if zona == 'B' else estado_atual.tempo_livre_B
+            custo_acao = tempo_inicio - hora_chegada
 
-                
-                estado_sucessor = Estado_Porto(
-                    navios_em_espera=nova_fila,
-                    disp_A=nova_disp_A,
-                    disp_B=nova_disp_B
-                )
 
-                sucessores.append((estado_sucessor, custo_acao))
+            novo_tempo_livre = tempo_inicio + duracao
+            
+
+            nova_fila = navios_fila[:i] + navios_fila[i+1:]
+
+            nova_disp_A = novo_tempo_livre if zona == 'A' else estado_atual.tempo_livre_A
+            nova_disp_B = novo_tempo_livre if zona == 'B' else estado_atual.tempo_livre_B
+            
+            estado_sucessor = Estado_Porto(
+                navios_em_espera=nova_fila,
+                disp_A=nova_disp_A,
+                disp_B=nova_disp_B
+            )
+
+            sucessores.append((estado_sucessor, custo_acao))
 
         return sucessores
 
-def algoritmo_guloso(regras):
-    start_time = time.time()  
-    
-    estado_atual = regras.estado_inicial
-    caminho = {estado_atual: None} 
-    custo_total = 0.0
+
+def custo_uniforme(regras):
+    start_time = time.time()  #
+    contador = itertools.count()
+    fila_prioritaria = []
+    melhor_custo = {} 
+    caminho = {} 
+
+    estado_inicial = regras.estado_inicial
+    heapq.heappush(fila_prioritaria, (0.0, next(contador), estado_inicial))
+
+    melhor_custo[estado_inicial] = 0.0
+    caminho[estado_inicial] = None
+
     estados_explorados = 0
-    
-    while not regras.e_estado_final(estado_atual):
+
+    while fila_prioritaria:
+
+        custo_atual, _, estado_atual = heapq.heappop(fila_prioritaria)
+
+        
+        if custo_atual > melhor_custo.get(estado_atual, float('inf')):
+            continue
+
         estados_explorados += 1
         
+        if estados_explorados % 10000 == 0:
+             print(f"Status UCS: {estados_explorados} estados explorados. Custo atual: {custo_atual:.2f}")
         
-        sucessores_e_custos = regras.simular_sucessores(estado_atual)
-        
-        if not sucessores_e_custos:
+        if regras.e_estado_final(estado_atual):
+            tempo_execucao = time.time() - start_time 
+            return custo_atual, caminho, estados_explorados, estado_atual, tempo_execucao
+
+        for estado_sucessor, custo_acao in regras.simular_sucessores(estado_atual):
+            novo_custo = custo_atual + custo_acao
             
-            break
+            # ID pré-calculado para o lookup
+            if novo_custo < melhor_custo.get(estado_sucessor, float('inf')):
+                melhor_custo[estado_sucessor] = novo_custo
+                caminho[estado_sucessor] = (estado_atual, custo_acao)
+                heapq.heappush(fila_prioritaria, (novo_custo, next(contador), estado_sucessor))
 
-       
-        # O algoritmo guloso só explora a melhor opção imediata.
-        melhor_sucessor, melhor_custo_acao = min(
-            sucessores_e_custos, 
-            key=lambda item: item[1] # item[1] é o custo_acao (tempo de espera)
-        )
-        
-        
-        custo_total += melhor_custo_acao
-        caminho[melhor_sucessor] = (estado_atual, melhor_custo_acao)
-        estado_atual = melhor_sucessor
+   
+    tempo_execucao = time.time() - start_time  
+    return None, None, estados_explorados, None, tempo_execucao
 
-    tempo_execucao = time.time() - start_time     
-    return custo_total, caminho, estados_explorados, estado_atual, tempo_execucao
 
 def construir_caminho(caminho, estado_final, estado_inicial):
     if estado_final is None or caminho is None:
@@ -184,7 +207,7 @@ def construir_caminho(caminho, estado_final, estado_inicial):
     caminho_reverso = []
     estado_atual = estado_final
 
-    while  estado_atual is not None and estado_atual != estado_inicial:
+    while estado_atual is not None and estado_atual != estado_inicial:
         resultado = caminho.get(estado_atual)
 
         if resultado is None:
@@ -192,6 +215,7 @@ def construir_caminho(caminho, estado_final, estado_inicial):
                 
         pai_estado, custo_acao = resultado
                 
+       
         navios_pai_ids = set(n['ID_Navio'] for n in pai_estado.navios_em_espera)
         navios_atual_ids = set(n['ID_Navio'] for n in estado_atual.navios_em_espera)
 
@@ -202,13 +226,13 @@ def construir_caminho(caminho, estado_final, estado_inicial):
                 
         id_navio_atracado = list(navio_removido)[0]
 
+      
         zona_atracagem = 'Indefinida'
-        if estado_atual.tempo_livre_A != pai_estado.tempo_livre_A:
+      
+        if estado_atual.tempo_livre_A > pai_estado.tempo_livre_A + 1e-3: 
             zona_atracagem = 'A'
-
-        elif estado_atual.tempo_livre_B != pai_estado.tempo_livre_B:
+        elif estado_atual.tempo_livre_B > pai_estado.tempo_livre_B + 1e-3: 
             zona_atracagem = 'B'
-
         else:
             zona_atracagem = 'Erro: Zona Indefinida'
             
@@ -226,14 +250,16 @@ def construir_caminho(caminho, estado_final, estado_inicial):
     return list(reversed(caminho_reverso))
 
 
-def resultado_ficheiro (Resultados_Ficheiro, custo_total, estados_explorados, sequencia_atracagem, tempo_execucao):
 
+def resultado_ficheiro (nome_ficheiro, custo_total, estados_explorados, sequencia_atracagem, tempo_execucao): 
 
+  
     resultados_texto = []
 
 
-    resultados_texto.append("Greedy - Mínimo Tempo de Espera Imediato")
-    resultados_texto.append(f"Tempo de Execução: {tempo_execucao:.6f} segundos") 
+   
+    resultados_texto.append("CUSTO UNIFORME OTIMIZADO (Restrição: Processar o Navio de Chegada Mais Cedo)")
+    resultados_texto.append(f"Tempo de Execução: {tempo_execucao:.4f} segundos") 
     resultados_texto.append(f"Estados Explorados: {estados_explorados}")
     resultados_texto.append(f"Custo Total Mínimo (Espera Acumulada): {custo_total if custo_total is not None else 'N/A'}")
     resultados_texto.append('-' * 60)
@@ -247,6 +273,7 @@ def resultado_ficheiro (Resultados_Ficheiro, custo_total, estados_explorados, se
     for i, passo in enumerate(sequencia_atracagem or []):
         custo_acumulado += passo['Custo_Ação']
 
+        
         linha = (f"{i+1:<3} | {passo['Navio_ID']:<10} | {passo['Zona']:<5} | {passo['Custo_Ação']:<10.2f} | "
                  f"{custo_acumulado:<20.2f} | {passo['Disp_A_Final']:.2f} / {passo['Disp_B_Final']:.2f}")
         resultados_texto.append(linha)
@@ -255,15 +282,15 @@ def resultado_ficheiro (Resultados_Ficheiro, custo_total, estados_explorados, se
     resultados_texto.append('\n')
 
     try:
-        with open(Resultados_Ficheiro, 'a', encoding='utf-8') as f:
+        with open(nome_ficheiro, 'a', encoding='utf-8') as f:
             f.write('\n'.join(resultados_texto) + '\n\n')
-        print(f"\n[INFO] Resultados registados em '{Resultados_Ficheiro}'.")
+        print(f"\n[INFO] Resultados registados em '{nome_ficheiro}'.")
     except Exception as e:
         print(f"[ERRO] Falha ao escrever no ficheiro: {e}")
 
-   
+    
 
-#Main
+# Main
 if __name__ == '__main__':
     if not fila_inicial:
         print('Fila inicial vazia. Nada a fazer.')
@@ -275,23 +302,23 @@ if __name__ == '__main__':
 
 
     print('\n' + '=' * 100)
-    print('Início da Pesquisa Gulosa (Greedy) - Mínimo Tempo de Espera Imediata')
+    print('Início da Pesquisa de Custo Uniforme Otimizada')
     print('=' * 100)
 
 
-  
-    custo_total, caminho, estados_explorados, estado_final, tempo_execucao = algoritmo_guloso(regras)
+    
+    custo_total, caminho, estados_explorados, estado_final, tempo_execucao = custo_uniforme(regras)
 
-    if estado_final is None or not regras.e_estado_final(estado_final):
-        print('\nNão foi encontrada solução completa (ou o algoritmo não conseguiu agendar todos os navios).')
+    if estado_final is None:
+        print('\nNão foi encontrada solução.')
         
-        resultado_ficheiro(Resultados_Ficheiro, None, estados_explorados, [], tempo_execucao) 
+        resultado_ficheiro(Resultados_Ficheiro, None, estados_explorados, [], tempo_execucao)
         sys.exit(0)
 
 
-    print(f"\nSolução encontrada com custo total (Espera Acumulada) = {custo_total:.2f}")
+    print(f"\nSolução encontrada com custo total = {custo_total:.2f}")
     print(f"Estados explorados: {estados_explorados}")
-    print(f"Tempo de execução: {tempo_execucao:.6f} segundos") 
+    print(f"Tempo de execução: {tempo_execucao:.4f} segundos") # Imprime na consola
 
     sequencia = construir_caminho(caminho, estado_final, estado_inicial)
 
