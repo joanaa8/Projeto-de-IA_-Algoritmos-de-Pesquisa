@@ -57,6 +57,8 @@ custo(n->n') é o tempo em que o navio atracado teve de espera
 
     e o custo podemos representar como se fosse a diferença entre o  tempo de inicio de atracagem  calculado anteriormente e a hora a que o navio chegou.
     tempos de espera maiores, têm um custo maiores
+    mudar para a diferença entre o  tempo de inicio de atracagem  calculado anteriormente e a hora a que o navio partiu.
+    tempos de espera maiores, têm um custo maiores
 
 o custo acumulado fica assim:
 
