@@ -1,27 +1,26 @@
 Para o python: 
 foi criado um ambiente isolado com todos os comandos que vão ser necessários,
 de forma a não interferir com o resto do computador.
-- certificar que o python está instalado
-- (no terminal) python -m venv venv: cria uma pasta à parte com bibliotecas, scripts, gitignore etc..
-- (no terminal) .\venv\Scripts\Activate abrir a parta em questão e instalar as bibliotecas necessárias
-- (no terminal) pip install pandas openpyxl para ler o ficheiro.
-- para fazer dubug é sempre dentro do venv com python navios.py
+- certificar que o python está instalado (`python --version`)
+- (no terminal) `python -m venv venv`: cria uma pasta à parte com bibliotecas, scripts, gitignore etc..
+- (no terminal) `.\venv\\Scripts\\Activate` : abrir a parta em questão e instalar as bibliotecas necessárias
+- (no terminal) `pip install pandas openpyxl` : pip install pandas openpyxl para ler o ficheiro.
+- para fazer dubug é sempre dentro do venv com `python main.py`
 
 
 como boa prática:
 - também devemos de colocar as bibliotecas na parte inicial do projeto.
-- comentar o projeto, para facilitar o acompanhamento
-
+- documentar e comentar o código para facilitar o acompanhamento
+- usar o controlo de versão (git) e adicionar `venv/` ao `.gitignore`
+- estruturar o projeto por módulos para clareza e reutilização
 
 
 Para a construção deste projeto, estamos a usar Programação Orientada a Objetos.
-
-
- A utilização das classes, permite uma melhor organização e num só local consiguimos dizer para que serve e do que vai tratar.
- No caso da classe Regras_Porto, definimos:
-        as restrições quer de compatibilidade quer capacidade, 
-        e a simulação dos sucessores,
-    Desta forma conseguimos definir as responsabilidades do Porto em questão
+    A utilização das classes, permite uma melhor organização e num só local consiguimos dizer para que serve e do que vai tratar.
+    No caso da classe Regras_Porto, definimos:
+            as restrições quer de compatibilidade quer capacidade, 
+            e a simulação dos sucessores,
+        Desta forma conseguimos definir as responsabilidades do Porto em questão
 
 Usamos também o conceito de incrementação que foi lecionado na cadeira de programação imperativa.
     Este conceito foi utilizado para atualizar a fila de espera quando um navio que estava nela vai atracar numa zona.

@@ -26,20 +26,19 @@ Requisitos e Considerações:
 
 ---pensamentos iniciais----
 Estado n, vai conter diversas variáveis como:
-    Disponibilidade da zona A; aqui também vai envolver o tempo mas é mais o de espera
-    Disponibilidade da zona B; "
+    Disponibilidade da zona A = tempo_livre_A; aqui também vai envolver o tempo mas é mais o de espera
+    Disponibilidade da zona B = tempo_livre_B; "
     Fila de espera: que engloba todos os navios por atracar 
                     estes têm variáveis associadas: ID_Navio, Tipo, Zona_Permitido, 
                                                     Porto_Origem, Tipo_carga, Hora_Chegada, 
                                                     Duracao_Atracagem, Prioridade
 
 podemos considerar: Estado = ( ZonaA,ZonaB,Fila), o tempo talvez sai por causa do calculo do custo
-
+                    Estado = ( fila, tempo_livre_A,tempo_livre_B)
 Estado inicial:
         ZonaA : 0.0, disponível; estou a considerar como a marcação do tempo
         ZonaB : 0.0, disponível; "
         Fila: inicialmente vai ter todos os navios presentes no ficheiro
-   ( o custo acumulado está a zero)
 
 Estado Final:
     Considera-se no estado final, quando a fila de espera estiver vazia, ou seja quando todos os barcos já foram atracados
