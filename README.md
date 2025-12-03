@@ -2,6 +2,7 @@
 Este projeto implementa um sistema baseado em algoritmos de pesquisa para otimizar a sequência de atracagem de navios no Atlantic InteliHarbour, com o objetivo de minimizar o tempo total de espera e evitar bloqueios operacionais.
 
 Algoritmos Implementados:
+
 🔹 UCS — Uniform Cost Search
 Garante solução ótima (menor tempo total de espera).
 Expande sempre o estado com menor custo acumulado.
