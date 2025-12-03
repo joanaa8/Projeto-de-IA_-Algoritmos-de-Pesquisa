@@ -9,7 +9,7 @@ if __name__ == '__main__':
     if not fila_inicial:
         sys.exit(0)
 
-    # 1. Limpa o ficheiro de resultados antes de começar
+    # Limpa o ficheiro de resultados antes de começar
     if os.path.exists(Resultados_Ficheiro):
         os.remove(Resultados_Ficheiro)
         print(f"[INFO] Ficheiro '{Resultados_Ficheiro}' limpo para nova comparação.")
