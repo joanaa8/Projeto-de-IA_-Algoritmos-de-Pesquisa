@@ -97,51 +97,60 @@ class Regras_Porto:
 
    
     def simular_sucessores(self, estado):
-
         fila = list(estado.navios_em_espera)
         if not fila:
             return []
 
         sucessores = []
 
-        # 1) Seleciona SEMPRE o navio com menor Hora_Chegada
-        #    Isto é CRUCIAL para evitar explosão
-        navio = fila[0]
+        # --- ALTERAÇÃO: Lookahead de 3 navios ---
+        # Em vez de olhar só para o fila[0], olhamos para os primeiros 3.
+        # Isto permite que o algoritmo "salte" um navio bloqueado.
+        limite_lookahead = 3
+        
+        # O range vai de 0 até ao mínimo entre o tamanho da fila e o limite (3)
+        for i in range(min(len(fila), limite_lookahead)):
+            navio = fila[i]
 
-        chegada = float(navio['Hora_Chegada'])
-        dur = float(navio['Duracao_Atracagem'])
-        zonas = self._zonas_elegiveis(navio)
+            chegada = float(navio['Hora_Chegada'])
+            dur = float(navio['Duracao_Atracagem'])
+            zonas = self._zonas_elegiveis(navio)
 
-        for zona in zonas:
-            if zona == 'A':
-                inicio = max(chegada, estado.tempo_livre_A)
-                novo_tA = inicio + dur
-                novo_tB = estado.tempo_livre_B
-            else:
-                inicio = max(chegada, estado.tempo_livre_B)
-                novo_tA = estado.tempo_livre_A
-                novo_tB = inicio + dur
+            for zona in zonas:
+                if zona == 'A':
+                    inicio = max(chegada, estado.tempo_livre_A)
+                    novo_tA = inicio + dur
+                    novo_tB = estado.tempo_livre_B
+                else:
+                    inicio = max(chegada, estado.tempo_livre_B)
+                    novo_tA = estado.tempo_livre_A
+                    novo_tB = inicio + dur
 
-            espera = max(0.0, inicio - chegada)
+                espera = max(0.0, inicio - chegada)
 
-            # Remove APENAS este navio
-            nova_fila = fila[1:]
-            novo_ids = estado._ids_tuple[1:]
+                # --- ALTERAÇÃO: Remover o navio específico (índice i) ---
+                # Antes removíamos sempre o primeiro (fila[1:]).
+                # Agora removemos o navio que estamos a processar (i), mantendo os outros.
+                nova_fila = fila[:i] + fila[i+1:]
+                
+                # Atualiza também a cache de IDs para o hash do estado
+                # (slice direto na tupla é eficiente)
+                novo_ids = estado._ids_tuple[:i] + estado._ids_tuple[i+1:]
 
-            novo_estado = Estado_Porto(nova_fila, novo_tA, novo_tB, ids_tuple=novo_ids)
+                novo_estado = Estado_Porto(nova_fila, novo_tA, novo_tB, ids_tuple=novo_ids)
 
-            acao = {
-                'Navio_ID': navio['ID_Navio'],
-                'Zona': zona,
-                'Inicio': inicio,
-                'Duracao': dur,
-                'Espera': espera,
-                'Hora_Chegada': chegada,
-                'Tipo': navio['Tipo'],
-                'Exclusivo_A': navio['Tipo'] == 'Tipo 2'
-            }
+                acao = {
+                    'Navio_ID': navio['ID_Navio'],
+                    'Zona': zona,
+                    'Inicio': inicio,
+                    'Duracao': dur,
+                    'Espera': espera,
+                    'Hora_Chegada': chegada,
+                    'Tipo': navio['Tipo'],
+                    'Exclusivo_A': navio['Tipo'] == 'Tipo 2'
+                }
 
-            sucessores.append((novo_estado, espera, acao))
+                sucessores.append((novo_estado, espera, acao))
 
         return sucessores
 

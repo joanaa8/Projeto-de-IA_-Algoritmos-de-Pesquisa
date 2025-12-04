@@ -1,4 +1,3 @@
-
 import time, heapq, itertools, collections
 from base_porto import Regras_Porto, Estado_Porto
 
