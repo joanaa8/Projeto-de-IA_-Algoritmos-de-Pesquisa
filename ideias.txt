@@ -98,5 +98,3 @@ Serie interessante comparar este modelo ao de Busca em Largura, uma vez que este
 
 colocar os resultados num ficheiro
 
-
-

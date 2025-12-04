@@ -1,87 +1,74 @@
-import os
-import sys
 
-
+import os, sys
 from base_porto import fila_inicial, Estado_Porto, Regras_Porto, Resultados_Ficheiro, construir_caminho, resultado_ficheiro
-from algoritmo import custo_uniforme, algoritmo_greedy, pesquisa_largura
+from algoritmo import custo_uniforme, algoritmo_greedy, pesquisa_largura, algoritmo_a_star
 
 if __name__ == '__main__':
     if not fila_inicial:
         sys.exit(0)
 
-    # Limpa o ficheiro de resultados antes de começar
     if os.path.exists(Resultados_Ficheiro):
         os.remove(Resultados_Ficheiro)
-        print(f"[INFO] Ficheiro '{Resultados_Ficheiro}' limpo para nova comparação.")
+    print(f"[INFO] Ficheiro '{Resultados_Ficheiro}' limpo para nova comparação.")
 
-
+    # Estado inicial (fila já ordenada em base_porto.py)
     estado_inicial = Estado_Porto(navios_em_espera=fila_inicial, disp_A=0.0, disp_B=0.0)
-    regras = Regras_Porto(estado_inicial)
+    # Usa janela_delta pequena e, se quiseres, limita nº de candidatos por expansão (ex.: 5)
+    regras = Regras_Porto(estado_inicial, janela_delta=0.0, max_candidatos=None)
 
     print('\n' + '=' * 100)
     print('INÍCIO DA COMPARAÇÃO DOS ALGORITMOS')
     print('=' * 100)
-    
 
-    comparacao_final = {}# Dicionário para armazenar resultados finais
-    
-    #  2. TESTE CUSTO UNIFORME (UCS)
-    nome_algoritmo = "UCS Otimizado"
-    print(f"\n[Execução] A correr {nome_algoritmo}...")
-    custo_ucs, caminho_ucs, estados_ucs, estado_final_ucs, tempo_ucs = custo_uniforme(regras)
-    
-    if estado_final_ucs is not None and regras.e_estado_final(estado_final_ucs):
-        sequencia_ucs = construir_caminho(caminho_ucs, estado_final_ucs, estado_inicial)
-        print(f"[{nome_algoritmo}]: SUCESSO! Custo: {custo_ucs:.2f}. Tempo: {tempo_ucs:.6f}s")
-        resultado_ficheiro(nome_algoritmo, tempo_ucs, custo_ucs, estados_ucs, sequencia_ucs)
-    else:
-        print(f"[{nome_algoritmo}]: FALHOU. Tempo: {tempo_ucs:.6f}s. Estados: {estados_ucs}")
-        resultado_ficheiro(nome_algoritmo, tempo_ucs, None, estados_ucs, [])
-    
-    comparacao_final[nome_algoritmo] = {"custo": custo_ucs, "tempo": tempo_ucs}
-    
-    
-    #  TESTE PESQUISA EM LARGURA (BFS) 
-    nome_algoritmo = "Pesquisa em Largura (BFS)"
-    print(f"\n[Execução] A correr {nome_algoritmo}...")
-    custo_bfs, caminho_bfs, estados_bfs, estado_final_bfs, tempo_bfs = pesquisa_largura(regras)
-    
-    if estado_final_bfs is not None and regras.e_estado_final(estado_final_bfs):
-        sequencia_bfs = construir_caminho(caminho_bfs, estado_final_bfs, estado_inicial)
-        print(f"[{nome_algoritmo}]: SUCESSO! Custo: {custo_bfs:.2f}. Tempo: {tempo_bfs:.6f}s")
-        resultado_ficheiro(nome_algoritmo, tempo_bfs, custo_bfs, estados_bfs, sequencia_bfs)
-    else:
-        print(f"[{nome_algoritmo}]: FALHOU. Tempo: {tempo_bfs:.6f}s. Estados: {estados_bfs}")
-        resultado_ficheiro(nome_algoritmo, tempo_bfs, None, estados_bfs, [])
-    
-    comparacao_final[nome_algoritmo] = {"custo": custo_bfs, "tempo": tempo_bfs}
+    comparacao_final = {}
 
-    
-    # TESTE algoritmo_greedy 
-    nome_algoritmo = "algoritmo Greedy"
-    print(f"\n[Execução] A correr {nome_algoritmo}...")
-    custo_greedy, caminho_greedy, estados_greedy, estado_final_greedy, tempo_greedy = algoritmo_greedy(regras)
-    
-    if estado_final_greedy is not None and regras.e_estado_final(estado_final_greedy):
-        sequencia_greedy = construir_caminho(caminho_greedy, estado_final_greedy, estado_inicial)
-        print(f"[{nome_algoritmo}]: SUCESSO! Custo: {custo_greedy:.2f}. Tempo: {tempo_greedy:.6f}s")
-        resultado_ficheiro(nome_algoritmo, tempo_greedy, custo_greedy, estados_greedy, sequencia_greedy)
+    # Greedy (para UB do UCS)
+    nome = "algoritmo Greedy (UB para UCS)"
+    print(f"\n[Execução] A correr {nome}...")
+    c_g, cam_g, est_g, fin_g, t_g = algoritmo_greedy(regras)
+    if fin_g is not None and regras.e_estado_final(fin_g):
+        seq_g = construir_caminho(cam_g, fin_g, estado_inicial)
+        print(f"[{nome}]: SUCESSO! Custo: {c_g:.2f}. Tempo: {t_g:.6f}s")
+        resultado_ficheiro(nome, t_g, c_g, est_g, seq_g)
+        ub = c_g  # upper bound para UCS
     else:
-        print(f"[{nome_algoritmo}]: FALHOU. Tempo: {tempo_greedy:.6f}s. Estados: {estados_greedy}")
-        resultado_ficheiro(nome_algoritmo, tempo_greedy, None, estados_greedy, [])
-    
-    comparacao_final[nome_algoritmo] = {"custo": custo_greedy, "tempo": tempo_greedy}
+        print(f"[{nome}]: FALHOU. Tempo: {t_g:.6f}s. Estados: {est_g}")
+        resultado_ficheiro(nome, t_g, None, est_g, [])
+        ub = float('inf')
+    comparacao_final[nome] = {"custo": c_g, "tempo": t_g}
 
-    
-  
+    # UCS com poda por UB
+    nome = "UCS Otimizado (branch-and-bound)"
+    print(f"\n[Execução] A correr {nome}...")
+    c_ucs, cam_ucs, est_ucs, fin_ucs, t_ucs = custo_uniforme(regras, ub=ub)
+    if fin_ucs is not None and regras.e_estado_final(fin_ucs):
+        seq_ucs = construir_caminho(cam_ucs, fin_ucs, estado_inicial)
+        print(f"[{nome}]: SUCESSO! Custo: {c_ucs:.2f}. Tempo: {t_ucs:.6f}s")
+        resultado_ficheiro(nome, t_ucs, c_ucs, est_ucs, seq_ucs)
+    else:
+        print(f"[{nome}]: FALHOU. Tempo: {t_ucs:.6f}s. Estados: {est_ucs}")
+        resultado_ficheiro(nome, t_ucs, None, est_ucs, [])
+    comparacao_final[nome] = {"custo": c_ucs, "tempo": t_ucs}
+
+    # A* (espera bruta)
+    nome = "A* (heurística admissível de espera bruta)"
+    print(f"\n[Execução] A correr {nome}...")
+    c_a, cam_a, est_a, fin_a, t_a = algoritmo_a_star(regras)
+    if fin_a is not None and regras.e_estado_final(fin_a):
+        seq_a = construir_caminho(cam_a, fin_a, estado_inicial)
+        print(f"[{nome}]: SUCESSO! Custo: {c_a:.2f}. Tempo: {t_a:.6f}s")
+        resultado_ficheiro(nome, t_a, c_a, est_a, seq_a)
+    else:
+        print(f"[{nome}]: FALHOU. Tempo: {t_a:.6f}s. Estados: {est_a}")
+        resultado_ficheiro(nome, t_a, None, est_a, [])
+    comparacao_final[nome] = {"custo": c_a, "tempo": t_a}
+
     print('\n' + '=' * 100)
     print("RESUMO FINAL DA COMPARAÇÃO DE ALGORITMOS")
     print('=' * 100)
-    print(f"{'Algoritmo':<30} | {'Custo Total (Espera)':<25} | {'Tempo (s)':<15}")
-    print('-' * 70)
-    
+    print(f"{'Algoritmo':<35} {'Custo Total (Espera)':<25} {'Tempo (s)':<15}")
+    print('-' * 80)
     for nome, dados in comparacao_final.items():
         custo = f"{dados['custo']:.2f}" if dados['custo'] is not None else "FALHA"
-        print(f"{nome:<30} | {custo:<25} | {dados['tempo']:.6f}")
-        
-    print('-' * 70)
+        print(f"{nome:<35} {custo:<25} {dados['tempo']:.6f}")
+    print('-' * 80)

@@ -1,239 +1,191 @@
+
 import pandas as pd
-import heapq #fila prioritária
-import datetime
-import sys #erros
-import itertools
-import os
-import time
-import collections
+import sys, os
+from typing import Dict, Any, Iterable, List
 
-ficheiro= 'dataset_navios_porto.xlsx'
-Resultados_Ficheiro= 'resultados.txt'
+ficheiro = 'dataset_navios_porto.xlsx'
+Resultados_Ficheiro = 'resultados.txt'
 
+# Carrega dataset e normaliza tipos
 try:
-    df = pd.read_excel(ficheiro)
-    print("O ficheiro foi carregado com sucesso.")
-    print(df.head()) #confirmação do carregamento
-
-
-    fila_inicial=df.to_dict(orient='records') #criação do dicionário onde cada linha representa um registo
-    
+    df = pd.read_excel(ficheiro, engine='openpyxl')
+    fila_inicial: List[Dict[str, Any]] = df.to_dict(orient='records')
     for r in fila_inicial:
-        try:
-            r['Hora_Chegada'] = float(r.get('Hora_Chegada', 0.0))
-        except Exception:
-            r['Hora_Chegada'] = 0.0
-
-        try:
-            r['Duracao_Atracagem'] = float(r.get('Duracao_Atracagem', 0.0))
-        except Exception:
-            r['Duracao_Atracagem'] = 0.0
-
-        r['ID_Navio'] = str(r.get('ID_Navio'))
-
-    print('\nFila Inicial de Espera:')
-    print(f"Total de Navios: {len(fila_inicial)}")
-
-    if fila_inicial:
-        print(f"Primeiro Navio: {fila_inicial[0]}")
-
-except FileNotFoundError:
-    print(f"Erro: Falha a encontrar o ficheiro '{ficheiro}'.")
-    sys.exit(1)
+        r['ID_Navio'] = str(r.get('ID_Navio', '')).strip()
+        r['Tipo'] = str(r.get('Tipo', '')).strip()
+        try: r['Hora_Chegada'] = float(r.get('Hora_Chegada', 0.0))
+        except: r['Hora_Chegada'] = 0.0
+        try: r['Duracao_Atracagem'] = float(r.get('Duracao_Atracagem', 0.0))
+        except: r['Duracao_Atracagem'] = 0.0
+    # Ordena APENAS uma vez por (Hora_Chegada, ID_Navio)
+    fila_inicial = sorted(fila_inicial, key=lambda n: (float(n['Hora_Chegada']), str(n['ID_Navio'])))
+    print("O ficheiro foi carregado com sucesso.")
 except Exception as e:
     print(f"Erro ao ler o ficheiro: {e}")
     sys.exit(1)
 
-class Estado_Porto: # aqui surge a definição do Estado
-    def __init__(self, navios_em_espera, disp_A, disp_B):
-        try:
-           
-            navios_ordenados = sorted(navios_em_espera, key=lambda n: n['ID_Navio'])
-        except Exception:
-            navios_ordenados = sorted(navios_em_espera)
 
-        self.navios_em_espera = tuple(navios_ordenados)
-        self.tempo_livre_A = disp_A
-        self.tempo_livre_B = disp_B
 
-        try:
-            navios_ids = tuple(n['ID_Navio'] for n in navios_ordenados)
-        except Exception:
-            navios_ids = tuple(str(n) for n in navios_ordenados)
 
-  
-        self._id = (navios_ids, round(self.tempo_livre_A, 3), round(self.tempo_livre_B, 3))
+# --- Estado_Porto otimizado (com cache de IDs) ---
+class Estado_Porto:
+    """
+    Representa um estado do porto:
+    - navios_em_espera: tupla ordenada de navios (cada navio é um dicionário)
+    - tempo_livre_A: próxima disponibilidade da zona A
+    - tempo_livre_B: próxima disponibilidade da zona B
+
+    Este estado é:
+    ✔ Imutável
+    ✔ Ordenado (evita estados duplicados)
+    ✔ Hashable (pode ser usado em sets e dicts)
+    ✔ Canonizado (duas filas iguais → mesmo estado)
+    """
+
+    __slots__ = ('navios_em_espera', 'tempo_livre_A', 'tempo_livre_B',
+                 '_ids_tuple', '_id', '_hash')
+
+    def __init__(self, navios_em_espera, disp_A: float, disp_B: float, ids_tuple=None):
+        
+       
+        navios_ordenados = tuple(sorted(
+            navios_em_espera,
+            key=lambda n: (float(n['Hora_Chegada']), str(n['ID_Navio']))
+        ))
+        self.navios_em_espera = navios_ordenados
+
+        # Garantir consistência numérica
+        self.tempo_livre_A = round(float(disp_A), 6)
+        self.tempo_livre_B = round(float(disp_B), 6)
+
+        # Cache dos IDs da fila para hashing rápido
+        if ids_tuple is None:
+            self._ids_tuple = tuple(n['ID_Navio'] for n in navios_ordenados)
+        else:
+            self._ids_tuple = ids_tuple
+
+        # Identificador único do estado (tupla imutável)
+        self._id = (self._ids_tuple, self.tempo_livre_A, self.tempo_livre_B)
+
+        # Pre-hash (muito mais rápido)
         self._hash = hash(self._id)
 
-    def _criar_id(self):
-        return self._id
-
-  
     def __eq__(self, other):
-        if not isinstance(other, Estado_Porto):
-            return False
-        if self._hash != other._hash:
-             return False
-        return self._id == other._id
+        return isinstance(other, Estado_Porto) and self._id == other._id
 
     def __hash__(self):
         return self._hash
 
     def __repr__(self):
-        return f"Estado_Porto(navios={len(self.navios_em_espera)}, A={self.tempo_livre_A}, B={self.tempo_livre_B})"
+        return f"Estado_Porto({len(self.navios_em_espera)} navios, A={self.tempo_livre_A}, B={self.tempo_livre_B})"
 
 
+# --- Regras_Porto com simular_sucessores (ESPERA BRUTA) ---
+class Regras_Porto:
 
-class Regras_Porto: #definir as regras e restrições que o porto apresenta
-    def __init__(self, estado_inicial):
+    def __init__(self, estado_inicial, janela_delta=0.0, max_candidatos=None):
         self.estado_inicial = estado_inicial
+        self.janela_delta = float(janela_delta)
+        self.max_candidatos = max_candidatos
 
     def e_estado_final(self, estado):
-        return len(estado.navios_em_espera) == 0 
+        return len(estado.navios_em_espera) == 0
 
- 
-    def simular_sucessores(self, estado_atual):
-        sucessores = []
-        navios_fila = list(estado_atual.navios_em_espera)
+    # Tipos elegíveis para zonas
+    def _zonas_elegiveis(self, navio):
+        return ['A'] if navio['Tipo'] == 'Tipo 2' else ['A', 'B']
 
-        if not navios_fila:
-            return sucessores
-            
-        navio_a_atracar = min(navios_fila, key=lambda n: n['Hora_Chegada'])
-        
-
-        try:
-            index_do_navio = navios_fila.index(navio_a_atracar)
-        except ValueError:
-    
-            return sucessores
-        
    
-        navio = navio_a_atracar
-        i = index_do_navio 
+    def simular_sucessores(self, estado):
 
-        zonas_possiveis = []
+        fila = list(estado.navios_em_espera)
+        if not fila:
+            return []
 
-        # Tipo 2 só pode ir para A
-        if navio['Tipo'] == 'Tipo 2':
-            zonas_possiveis = [('A', estado_atual.tempo_livre_A)]
-        # Tipo 1 pode ir para A ou B
-        elif navio['Tipo'] == 'Tipo 1':
-            zonas_possiveis = [
-                ('A', estado_atual.tempo_livre_A),
-                ('B', estado_atual.tempo_livre_B)
-            ]
-      
-        
-        for zona, tempo_livre in zonas_possiveis:
+        sucessores = []
 
-            hora_chegada = float(navio.get('Hora_Chegada', 0.0))
-            duracao = float(navio.get('Duracao_Atracagem', 0.0))
+        # 1) Seleciona SEMPRE o navio com menor Hora_Chegada
+        #    Isto é CRUCIAL para evitar explosão
+        navio = fila[0]
 
-         
-            tempo_inicio = max(hora_chegada, tempo_livre)
+        chegada = float(navio['Hora_Chegada'])
+        dur = float(navio['Duracao_Atracagem'])
+        zonas = self._zonas_elegiveis(navio)
 
-            custo_acao = tempo_inicio - hora_chegada
+        for zona in zonas:
+            if zona == 'A':
+                inicio = max(chegada, estado.tempo_livre_A)
+                novo_tA = inicio + dur
+                novo_tB = estado.tempo_livre_B
+            else:
+                inicio = max(chegada, estado.tempo_livre_B)
+                novo_tA = estado.tempo_livre_A
+                novo_tB = inicio + dur
 
+            espera = max(0.0, inicio - chegada)
 
-            novo_tempo_livre = tempo_inicio + duracao
-            
+            # Remove APENAS este navio
+            nova_fila = fila[1:]
+            novo_ids = estado._ids_tuple[1:]
 
-            nova_fila = navios_fila[:i] + navios_fila[i+1:]
+            novo_estado = Estado_Porto(nova_fila, novo_tA, novo_tB, ids_tuple=novo_ids)
 
-            nova_disp_A = novo_tempo_livre if zona == 'A' else estado_atual.tempo_livre_A
-            nova_disp_B = novo_tempo_livre if zona == 'B' else estado_atual.tempo_livre_B
-            
-            estado_sucessor = Estado_Porto(
-                navios_em_espera=nova_fila,
-                disp_A=nova_disp_A,
-                disp_B=nova_disp_B
-            )
+            acao = {
+                'Navio_ID': navio['ID_Navio'],
+                'Zona': zona,
+                'Inicio': inicio,
+                'Duracao': dur,
+                'Espera': espera,
+                'Hora_Chegada': chegada,
+                'Tipo': navio['Tipo'],
+                'Exclusivo_A': navio['Tipo'] == 'Tipo 2'
+            }
 
-            sucessores.append((estado_sucessor, custo_acao))
+            sucessores.append((novo_estado, espera, acao))
 
         return sucessores
+
 
 
 def construir_caminho(caminho, estado_final, estado_inicial):
     if estado_final is None or caminho is None:
         return []
-
-    caminho_reverso = []
-    estado_atual = estado_final
-
-    while  estado_atual is not None and estado_atual != estado_inicial:
-        resultado = caminho.get(estado_atual)
-
-        if resultado is None:
+    sequencia = []
+    e = estado_final
+    while e is not None and e != estado_inicial:
+        entrada = caminho.get(e)
+        if entrada is None:
             break
-                
-        pai_estado, custo_acao = resultado
-                
-        navios_pai_ids = set(n['ID_Navio'] for n in pai_estado.navios_em_espera)
-        navios_atual_ids = set(n['ID_Navio'] for n in estado_atual.navios_em_espera)
-
-        navio_removido = list(navios_pai_ids - navios_atual_ids)
-        if not navio_removido:
-            estado_atual = pai_estado
-            continue
-                
-        id_navio_atracado = list(navio_removido)[0]
-
-        zona_atracagem = 'Indefinida'
-        if estado_atual.tempo_livre_A != pai_estado.tempo_livre_A:
-            zona_atracagem = 'A'
-
-        elif estado_atual.tempo_livre_B != pai_estado.tempo_livre_B:
-            zona_atracagem = 'B'
-
-        else:
-            zona_atracagem = 'Erro: Zona Indefinida'
-            
-        passo= {
-            'Navio_ID': id_navio_atracado,
-            'Custo_Ação': custo_acao,
-            'Zona': zona_atracagem,
-            'Disp_A_Final': estado_atual.tempo_livre_A,
-            'Disp_B_Final': estado_atual.tempo_livre_B
+        pai, custo_acao, acao = entrada
+        passo = {
+            'Navio_ID': acao.get('Navio_ID'),
+            'Zona': acao.get('Zona'),
+            'Inicio': acao.get('Inicio'),
+            'Duracao': acao.get('Duracao'),
+            'Espera': custo_acao,
+            'Disp_A_Final': e.tempo_livre_A,
+            'Disp_B_Final': e.tempo_livre_B
         }
-        caminho_reverso.append(passo)
-            
-        estado_atual = pai_estado
-
-    return list(reversed(caminho_reverso))
-
+        sequencia.append(passo)
+        e = pai
+    return list(reversed(sequencia))
 
 
 def resultado_ficheiro (nome_algoritmo, tempo_execucao, custo_total, estados_explorados, sequencia_atracagem):
-
-
-    resultados_texto = []
-
-    
-    resultados_texto.append(f"ALGORITMO: {nome_algoritmo}")
-    resultados_texto.append(f"Tempo de Execução: {tempo_execucao:.6f} segundos")
-    resultados_texto.append(f"Estados Explorados: {estados_explorados}")
-    resultados_texto.append(f"Custo Total (Soma Espera): {custo_total if custo_total is not None else 'N/A'}")
-    resultados_texto.append('========================================================')
-    resultados_texto.append('Sequência de Atracagem:')
-
-    resultados_texto.append(f"{'#':<3} | {'Navio ID':<10} | {'Zona':<5} | {'Espera (C)':<10} | {'Custo Acumulado (g)':<20} | {'Disp A / Disp B'}")
-    resultados_texto.append('-' * 100)
-
-    custo_acumulado = 0.0
-    for i, passo in enumerate(sequencia_atracagem or []):
-        custo_acumulado += passo['Custo_Ação']
-
-        linha = (f"{i+1:<3} | {passo['Navio_ID']:<10} | {passo['Zona']:<5} | {passo['Custo_Ação']:<10.2f} | "
-                 f"{custo_acumulado:<20.2f} | {passo['Disp_A_Final']:.2f} / {passo['Disp_B_Final']:.2f}")
-        resultados_texto.append(linha)
-
-
-    try:
-        
-        with open(Resultados_Ficheiro, 'a', encoding='utf-8') as f: # 'a' (append) para adicionar o novo log ao fim do ficheiro
-            f.write('\n'.join(resultados_texto) + '\n')
-        print(f"\n[INFO] Resultados do {nome_algoritmo} registados em '{Resultados_Ficheiro}'.")
-    except Exception as e:
-        print(f"[ERRO] Falha ao escrever no ficheiro: {e}")
+    resultados = []
+    resultados.append(f"ALGORITMO: {nome_algoritmo}")
+    resultados.append(f"Tempo de Execução: {tempo_execucao:.6f} segundos")
+    resultados.append(f"Estados Explorados: {estados_explorados}")
+    resultados.append(f"Custo Total (Soma Espera): {custo_total if custo_total is not None else 'N/A'}")
+    resultados.append('========================================================')
+    resultados.append('Sequência de Atracagem:')
+    resultados.append(f"{'#':<3} {'Navio ID':<10} {'Zona':<5} {'Espera (C)':<10} {'Disp A / Disp B'}")
+    resultados.append('-'*100)
+    for i, p in enumerate(sequencia_atracagem or []):
+        linha = (f"{i+1:<3} {p['Navio_ID']:<10} {p['Zona']:<5} "
+                 f"{float(p['Espera']):<10.2f} "
+                 f"{p['Disp_A_Final']:.2f} / {p['Disp_B_Final']:.2f}")
+        resultados.append(linha)
+    with open(Resultados_Ficheiro, 'a', encoding='utf-8') as f:
+        f.write('\n'.join(resultados) + '\n')
+    print(f"\n[INFO] Resultados do {nome_algoritmo} registados em '{Resultados_Ficheiro}'.")
