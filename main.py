@@ -37,10 +37,12 @@ if __name__ == '__main__':
     comparacao_final[nome] = {"custo": c_g, "tempo": t_g}
 
 
-# A* (espera bruta)
-    nome = "A* (heurística admissível de espera bruta)"
+
+    # A* com heurística melhorada
+    nome = "A* (heurística melhorada: espera + carga relaxada)"
     print(f"\n[Execução] A correr {nome}...")
     c_a, cam_a, est_a, fin_a, t_a = algoritmo_a_star(regras)
+
     if fin_a is not None and regras.e_estado_final(fin_a):
         seq_a = construir_caminho(cam_a, fin_a, estado_inicial)
         print(f"[{nome}]: SUCESSO! Custo: {c_a:.2f}. Tempo: {t_a:.6f}s")
@@ -48,7 +50,9 @@ if __name__ == '__main__':
     else:
         print(f"[{nome}]: FALHOU. Tempo: {t_a:.6f}s. Estados: {est_a}")
         resultado_ficheiro(nome, t_a, None, est_a, [])
+        
     comparacao_final[nome] = {"custo": c_a, "tempo": t_a}
+
 
 
     # UCS com poda por UB

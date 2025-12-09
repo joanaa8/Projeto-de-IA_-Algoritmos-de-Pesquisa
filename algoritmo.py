@@ -9,7 +9,7 @@ def heuristica_espera(estado: Estado_Porto) -> float:
         chg = float(n['Hora_Chegada']); dur = float(n['Duracao_Atracagem'])
         if n['Tipo'] == 'Tipo 2': exclusivos_A.append((chg, dur))       # exclusivo A
         else:                      flexiveis.append(chg)                 # Tipo 1 (A/B)
-        # (Se existirem exclusivos B no teu dataset, separa-os em exclusivos_B)
+        
 
     exclusivos_A.sort(key=lambda x: x[0])
     lb = 0.0
@@ -62,7 +62,6 @@ def algoritmo_a_star(regras: Regras_Porto):
     return None, None, explorados, None, time.time()-start
 
 
-# --- UCS com branch-and-bound (UB retirado do Greedy) ---
 def custo_uniforme(regras: Regras_Porto, ub: float = float('inf')):
     """UCS: ótimo; poda ramos com custo >= ub (upper bound opcional)."""
     start = time.time()
@@ -97,7 +96,7 @@ def custo_uniforme(regras: Regras_Porto, ub: float = float('inf')):
     return None, None, explorados, None, time.time()-start
 
 
-# --- Greedy com política de não bloquear A ---
+
 def algoritmo_greedy(regras: Regras_Porto):
     start = time.time()
     e = regras.estado_inicial
@@ -116,7 +115,7 @@ def algoritmo_greedy(regras: Regras_Porto):
         if a_excl:
             sucs = [s for s in sucs if not (s[2].get('Zona')=='A' and not s[2].get('Exclusivo_A'))] or sucs
 
-        # Guloso: custo -> chegada -> duração
+        # greedy: custo -> chegada -> duração
         sucs.sort(key=lambda s: (s[1], s[2]['Hora_Chegada'], s[2]['Duracao']))
         e2, c, acao = sucs[0]
         g_total += c
@@ -126,7 +125,7 @@ def algoritmo_greedy(regras: Regras_Porto):
     return g_total, caminho, explorados, e, time.time()-start
 
 
-# --- BFS (referência estrutural) ---
+
 def pesquisa_largura(regras: Regras_Porto):
     start = time.time()
     fila = collections.deque([regras.estado_inicial])

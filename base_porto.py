@@ -3,8 +3,8 @@ import pandas as pd
 import sys, os
 from typing import Dict, Any, Iterable, List
 
-ficheiro = 'dataset_navios_porto.xlsx'
-Resultados_Ficheiro = 'resultados.txt'
+ficheiro = 'dataset_navios_porto_100.xlsx'
+Resultados_Ficheiro = 'resultadosdata100.txt'
 
 # Carrega dataset e normaliza tipos
 try:
@@ -25,23 +25,8 @@ except Exception as e:
     sys.exit(1)
 
 
-
-
-# --- Estado_Porto otimizado (com cache de IDs) ---
 class Estado_Porto:
-    """
-    Representa um estado do porto:
-    - navios_em_espera: tupla ordenada de navios (cada navio é um dicionário)
-    - tempo_livre_A: próxima disponibilidade da zona A
-    - tempo_livre_B: próxima disponibilidade da zona B
-
-    Este estado é:
-    ✔ Imutável
-    ✔ Ordenado (evita estados duplicados)
-    ✔ Hashable (pode ser usado em sets e dicts)
-    ✔ Canonizado (duas filas iguais → mesmo estado)
-    """
-
+ 
     __slots__ = ('navios_em_espera', 'tempo_livre_A', 'tempo_livre_B',
                  '_ids_tuple', '_id', '_hash')
 
@@ -54,8 +39,8 @@ class Estado_Porto:
         ))
         self.navios_em_espera = navios_ordenados
 
-        # Garantir consistência numérica
-        self.tempo_livre_A = round(float(disp_A), 6)
+        
+        self.tempo_livre_A = round(float(disp_A), 6)# Garantir consistência numérica
         self.tempo_livre_B = round(float(disp_B), 6)
 
         # Cache dos IDs da fila para hashing rápido
@@ -64,11 +49,11 @@ class Estado_Porto:
         else:
             self._ids_tuple = ids_tuple
 
-        # Identificador único do estado (tupla imutável)
-        self._id = (self._ids_tuple, self.tempo_livre_A, self.tempo_livre_B)
+        
+        self._id = (self._ids_tuple, self.tempo_livre_A, self.tempo_livre_B)# Identificador único do estado (tupla imutável)
 
-        # Pre-hash (muito mais rápido)
-        self._hash = hash(self._id)
+        
+        self._hash = hash(self._id)# Pre-hash, muito mais rápido
 
     def __eq__(self, other):
         return isinstance(other, Estado_Porto) and self._id == other._id
@@ -80,7 +65,7 @@ class Estado_Porto:
         return f"Estado_Porto({len(self.navios_em_espera)} navios, A={self.tempo_livre_A}, B={self.tempo_livre_B})"
 
 
-# --- Regras_Porto com simular_sucessores (ESPERA BRUTA) ---
+
 class Regras_Porto:
 
     def __init__(self, estado_inicial, janela_delta=0.0, max_candidatos=None):
@@ -103,13 +88,12 @@ class Regras_Porto:
 
         sucessores = []
 
-        # --- ALTERAÇÃO: Lookahead de 3 navios ---
-        # Em vez de olhar só para o fila[0], olhamos para os primeiros 3.
-        # Isto permite que o algoritmo "salte" um navio bloqueado.
-        limite_lookahead = 3
-        
-        # O range vai de 0 até ao mínimo entre o tamanho da fila e o limite (3)
-        for i in range(min(len(fila), limite_lookahead)):
+     
+        limite_lookahead = 1 # olhamos para os 3 primeiros e tentamos alocar qualquer um deles
+        #troca para 2 para 25
+        #troca para 1 para 30
+       
+        for i in range(min(len(fila), limite_lookahead)): # para cada um dos primeiros 3 navios na fila
             navio = fila[i]
 
             chegada = float(navio['Hora_Chegada'])
@@ -128,18 +112,13 @@ class Regras_Porto:
 
                 espera = max(0.0, inicio - chegada)
 
-                # --- ALTERAÇÃO: Remover o navio específico (índice i) ---
-                # Antes removíamos sempre o primeiro (fila[1:]).
-                # Agora removemos o navio que estamos a processar (i), mantendo os outros.
-                nova_fila = fila[:i] + fila[i+1:]
+                nova_fila = fila[:i] + fila[i+1:]# remove o navio que estamos a processar (i) e mantem os outros.
                 
-                # Atualiza também a cache de IDs para o hash do estado
-                # (slice direto na tupla é eficiente)
-                novo_ids = estado._ids_tuple[:i] + estado._ids_tuple[i+1:]
+                novo_ids = estado._ids_tuple[:i] + estado._ids_tuple[i+1:] #atualiza ids
 
                 novo_estado = Estado_Porto(nova_fila, novo_tA, novo_tB, ids_tuple=novo_ids)
 
-                acao = {
+                acao = { 
                     'Navio_ID': navio['ID_Navio'],
                     'Zona': zona,
                     'Inicio': inicio,
@@ -198,3 +177,4 @@ def resultado_ficheiro (nome_algoritmo, tempo_execucao, custo_total, estados_exp
     with open(Resultados_Ficheiro, 'a', encoding='utf-8') as f:
         f.write('\n'.join(resultados) + '\n')
     print(f"\n[INFO] Resultados do {nome_algoritmo} registados em '{Resultados_Ficheiro}'.")
+    print('\n')

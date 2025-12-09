@@ -1,5 +1,5 @@
 ALGORITMO: algoritmo Greedy (UB para UCS)
-Tempo de Execução: 0.001687 segundos
+Tempo de Execução: 0.000561 segundos
 Estados Explorados: 20
 Custo Total (Soma Espera): 226.2
 ========================================================
@@ -26,8 +26,8 @@ Sequência de Atracagem:
 18  N13        B     22.00      32.10 / 35.30
 19  N18        A     23.50      33.90 / 35.30
 20  N17        A     30.30      39.90 / 35.30
-ALGORITMO: A* (heurística admissível de espera bruta)
-Tempo de Execução: 6.312196 segundos
+ALGORITMO: A* (heurística melhorada: espera + carga relaxada)
+Tempo de Execução: 3.866942 segundos
 Estados Explorados: 74766
 Custo Total (Soma Espera): 215.09999999999997
 ========================================================
@@ -55,7 +55,7 @@ Sequência de Atracagem:
 19  N17        A     30.80      40.40 / 29.90
 20  N13        B     21.50      40.40 / 34.80
 ALGORITMO: UCS Otimizado (branch-and-bound)
-Tempo de Execução: 161.354835 segundos
+Tempo de Execução: 84.902533 segundos
 Estados Explorados: 2051925
 Custo Total (Soma Espera): 211.39999999999998
 ========================================================
