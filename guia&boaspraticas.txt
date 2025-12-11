@@ -7,6 +7,12 @@ de forma a não interferir com o resto do computador.
 - (no terminal) `pip install pandas openpyxl` : pip install pandas openpyxl para ler o ficheiro.
 - para fazer dubug é sempre dentro do venv com `python main.py`
 
+.
+
+
+
+
+
 
 como boa prática:
 - também devemos de colocar as bibliotecas na parte inicial do projeto.
