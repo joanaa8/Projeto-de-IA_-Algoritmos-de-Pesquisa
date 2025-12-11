@@ -69,3 +69,4 @@ Algoritmo de Busca em Largura
         A mesma é vista apenas como uma lista, que vai usar a estratégia de FIFO
         
 
+já consegui
