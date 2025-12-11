@@ -1,5 +1,5 @@
 ALGORITMO: algoritmo Greedy (UB para UCS)
-Tempo de Execução: 0.001673 segundos
+Tempo de Execução: 0.006016 segundos
 Estados Explorados: 100
 Custo Total (Soma Espera): 8461.259999999998
 ========================================================
